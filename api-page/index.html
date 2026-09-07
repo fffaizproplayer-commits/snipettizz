@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>snip.izzcs — snippet library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+  .hero { border: var(--border-w) solid var(--ink); border-radius: var(--radius); background: var(--card); padding: 20px; margin-bottom: 16px; }
+  .hero-title { font-size: 18px; font-weight: 800; margin: 0 0 6px; }
+  .hero-desc { font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; margin: 0; }
+
+  .search-row { margin-bottom: 12px; }
+  #search {
+    width: 100%;
+    font-family: inherit;
+    font-size: 13px;
+    padding: 11px 14px;
+    border: var(--border-w) solid var(--ink);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--ink);
+  }
+  #search:focus { outline: none; box-shadow: 3px 3px 0 var(--ink); }
+  #search::placeholder { color: #A6A091; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+  .tab {
+    font-family: inherit; font-size: 12px; font-weight: 700; padding: 8px 14px;
+    border: var(--border-w) solid var(--ink); border-radius: 999px; background: var(--card); cursor: pointer;
+  }
+  .tab.active { background: var(--mint); color: #063D2C; }
+
+  .snip-card { border: var(--border-w) solid var(--ink); border-radius: var(--radius); background: var(--card); padding: 16px; margin-bottom: 14px; }
+  .snip-badge {
+    display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 800;
+    border: 1.5px solid var(--ink); border-radius: 999px; padding: 3px 10px; margin-bottom: 10px;
+  }
+  .snip-badge.scraper { background: var(--mint); color: #063D2C; }
+  .snip-badge.feature { background: var(--yellow); color: #141414; }
+  .snip-title { font-size: 15px; font-weight: 800; margin: 0 0 6px; }
+  .snip-desc { font-size: 12px; color: var(--ink-soft); margin: 0 0 10px; line-height: 1.5; }
+  .snip-preview {
+    font-size: 11px; background: #0F0F0F; color: #E5E5E0; border-radius: 8px; padding: 10px 12px;
+    overflow-x: auto; white-space: pre; margin-bottom: 10px; max-height: 130px; overflow-y: hidden;
+  }
+  .snip-meta { font-size: 10.5px; color: var(--ink-soft); margin: 0 0 10px; display: flex; align-items: center; gap: 5px; }
+  .snip-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .snip-actions .btn { flex: 1; min-width: 90px; font-size: 11.5px; padding: 9px 10px; }
+
+  .empty-msg { font-size: 12px; color: var(--ink-soft); text-align: center; padding: 20px 0; display: none; }
+  .toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; font-size: 12px; font-weight: 700;
+    padding: 10px 16px; border-radius: 999px; z-index: 300; opacity: 0; pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .toast.show { opacity: 1; }
+
+  .form-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(20,20,20,0.6);
+    z-index: 260; align-items: center; justify-content: center; padding: 16px;
+  }
+  .form-overlay.open { display: flex; }
+  .form-card {
+    width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto;
+    background: var(--card); border: var(--border-w) solid var(--ink); border-radius: var(--radius);
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+  .form-head {
+    background: var(--mint); color: #063D2C; padding: 16px 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: var(--border-w) solid var(--ink);
+  }
+  .form-title { font-size: 16px; font-weight: 800; margin: 0; }
+  .form-body { padding: 16px; }
+  .form-label { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-soft); margin: 14px 0 6px; }
+  .form-label:first-child { margin-top: 0; }
+  .form-input, .form-textarea {
+    width: 100%; font-family: inherit; font-size: 13px; padding: 10px 12px;
+    border: var(--border-w) solid var(--ink); border-radius: 10px; background: var(--card); color: var(--ink);
+  }
+  .form-input:focus, .form-textarea:focus { outline: none; box-shadow: 3px 3px 0 var(--ink); }
+  .form-textarea { min-height: 160px; resize: vertical; font-size: 12px; line-height: 1.5; }
+  .form-select-row { display: flex; gap: 8px; }
+  .form-select-row .tab { flex: 1; }
+  .form-err { color: #C0392B; font-size: 11.5px; margin: 10px 0 0; display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="nav-root"></div>
+
+  <div class="hero">
+    <p class="hero-title">Snippet Library</p>
+    <p class="hero-desc">Explore and reuse the scrapers and feature scripts that power izz_api — copy, view, or grab the raw source.</p>
+  </div>
+
+  <div id="storageWarning" style="display:none;border:2px solid var(--ink);border-radius:12px;background:#FFE9A8;padding:12px 14px;font-size:11.5px;line-height:1.6;margin-bottom:14px;">
+    <strong>Storage belum persistent.</strong> Belum ada env var Upstash Redis, jadi snippet yang kamu tambahin bisa <b>hilang</b> tiap kali Vercel redeploy/cold-start. Set <code>UPSTASH_REDIS_REST_URL</code> &amp; <code>UPSTASH_REDIS_REST_TOKEN</code> di Vercel project settings.
+  </div>
+
+  <button class="btn btn-mint" id="addSnippetBtn" type="button" style="width:100%;margin-bottom:14px;font-size:13px;padding:12px;">
+    <svg class="icon-sm"><use href="#icon-code"></use></svg> Add Snippet
+  </button>
+
+  <div class="search-row">
+    <input type="text" id="search" placeholder="search by title or code content...">
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-filter="all" type="button">All Snippets</button>
+    <button class="tab" data-filter="feature" type="button">Features</button>
+    <button class="tab" data-filter="scraper" type="button">Scrapers</button>
+  </div>
+
+  <div id="list"></div>
+  <p class="empty-msg" id="empty">no snippets match that search.</p>
+
+</div>
+
+<div class="form-overlay" id="formOverlay">
+  <div class="form-card">
+    <div class="form-head">
+      <p class="form-title">Add Snippet</p>
+      <button class="nav-close" id="formClose" type="button"><svg class="icon icon-sm"><use href="#icon-close"></use></svg></button>
+    </div>
+    <div class="form-body">
+      <label class="form-label" for="f-title">Title *</label>
+      <input class="form-input" id="f-title" type="text" placeholder="e.g. TikTok Video Downloader">
+
+      <label class="form-label" for="f-category">Category *</label>
+      <div class="form-select-row">
+        <button class="tab active" data-cat="Scraper" type="button">Scraper</button>
+        <button class="tab" data-cat="Feature" type="button">Feature</button>
+      </div>
+
+      <label class="form-label" for="f-desc">Description</label>
+      <input class="form-input" id="f-desc" type="text" placeholder="short one-line description">
+
+      <label class="form-label" for="f-file">File name</label>
+      <input class="form-input" id="f-file" type="text" placeholder="e.g. tiktok.js (optional)">
+
+      <label class="form-label" for="f-code">Code *</label>
+      <textarea class="form-textarea" id="f-code" placeholder="paste your snippet code here..."></textarea>
+
+      <p class="form-err" id="formErr"></p>
+      <button class="btn btn-mint" id="formSubmit" type="button" style="width:100%;font-size:13px;padding:12px;">Save Snippet</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied!</div>
+
+<script src="/nav.js"></script>
+<script>
+  initNav('snippet');
+
+  let allSnippets = [];
+  let activeFilter = 'all';
+  let activeQuery = '';
+
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('id-ID', { year: 'numeric', month: 'numeric', day: 'numeric' }) +
+      ', ' + d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  }
+
+  function render() {
+    const list = document.getElementById('list');
+    const empty = document.getElementById('empty');
+
+    const filtered = allSnippets.filter(s => {
+      const matchTab = activeFilter === 'all' || s.category.toLowerCase() === activeFilter;
+      const q = activeQuery.toLowerCase();
+      const matchSearch = !q || s.title.toLowerCase().includes(q) || s.preview.toLowerCase().includes(q) || s.description.toLowerCase().includes(q);
+      return matchTab && matchSearch;
+    });
+
+    if (!filtered.length) {
+      list.innerHTML = '';
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = filtered.map(s => `
+      <div class="snip-card">
+        <span class="snip-badge ${s.category.toLowerCase()}"><svg class="icon-sm"><use href="#icon-search"></use></svg> ${s.category.toUpperCase()}</span>
+        <p class="snip-title">${s.title}</p>
+        <p class="snip-desc">${s.description}</p>
+        <div class="snip-preview">${escapeHtml(s.preview)}</div>
+        <p class="snip-meta"><svg class="icon-sm"><use href="#icon-calendar"></use></svg> ${fmtDate(s.date)} &middot; ${s.lines} lines</p>
+        <div class="snip-actions">
+          <button class="btn btn-mint" data-copy="${s.id}" type="button"><svg class="icon-sm"><use href="#icon-copy"></use></svg> Copy</button>
+          <a class="btn btn-yellow" href="/snippet/${s.id}"><svg class="icon-sm"><use href="#icon-folder"></use></svg> View</a>
+          <button class="btn btn-card" data-share="${s.id}" type="button"><svg class="icon-sm"><use href="#icon-share"></use></svg> Share</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1400);
+  }
+
+  document.getElementById('list').addEventListener('click', async (e) => {
+    const copyId = e.target.closest('[data-copy]')?.dataset.copy;
+    const shareId = e.target.closest('[data-share]')?.dataset.share;
+
+    if (copyId) {
+      try {
+        const res = await fetch(`/api/snippets/${copyId}/raw`);
+        const code = await res.text();
+        await navigator.clipboard.writeText(code);
+        showToast('Code copied!');
+      } catch (err) { showToast('Copy failed'); }
+    }
+
+    if (shareId) {
+      const url = `${window.location.origin}/snippet/${shareId}`;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: 'izz_api Snippet', url });
+        } else {
+          await navigator.clipboard.writeText(url);
+          showToast('Link copied!');
+        }
+      } catch (err) { /* user cancelled share, ignore */ }
+    }
+  });
+
+  document.getElementById('tabs').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab');
+    if (!btn) return;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === btn));
+    activeFilter = btn.dataset.filter;
+    render();
+  });
+
+  document.getElementById('search').addEventListener('input', (e) => {
+    activeQuery = e.target.value.trim();
+    render();
+  });
+
+  async function loadSnippets() {
+    document.getElementById('list').innerHTML = '<p class="empty-msg" style="display:block">loading snippets...</p>';
+    try {
+      const res = await fetch('/api/snippets');
+      const { result } = await res.json();
+      allSnippets = result;
+      render();
+    } catch (e) {
+      document.getElementById('list').innerHTML = '<p class="empty-msg" style="display:block">failed to load snippets.</p>';
+    }
+  }
+
+  loadSnippets();
+
+  fetch('/api/snippets-meta/storage').then(r => r.json()).then(({ result }) => {
+    if (result && result.backend && result.backend.includes('not persistent')) {
+      document.getElementById('storageWarning').style.display = 'block';
+    }
+  }).catch(() => {});
+
+  // ===== Add Snippet form =====
+  const formOverlay = document.getElementById('formOverlay');
+  let selectedCategory = 'Scraper';
+
+  function openForm() {
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-desc').value = '';
+    document.getElementById('f-file').value = '';
+    document.getElementById('f-code').value = '';
+    document.getElementById('formErr').style.display = 'none';
+    selectedCategory = 'Scraper';
+    document.querySelectorAll('.form-select-row .tab').forEach(t => t.classList.toggle('active', t.dataset.cat === 'Scraper'));
+    formOverlay.classList.add('open');
+  }
+
+  function closeForm() { formOverlay.classList.remove('open'); }
+
+  document.getElementById('addSnippetBtn').addEventListener('click', openForm);
+  document.getElementById('formClose').addEventListener('click', closeForm);
+  formOverlay.addEventListener('click', (e) => { if (e.target === formOverlay) closeForm(); });
+
+  document.querySelector('.form-select-row').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab');
+    if (!btn) return;
+    selectedCategory = btn.dataset.cat;
+    document.querySelectorAll('.form-select-row .tab').forEach(t => t.classList.toggle('active', t === btn));
+  });
+
+  document.getElementById('formSubmit').addEventListener('click', async () => {
+    const title = document.getElementById('f-title').value.trim();
+    const description = document.getElementById('f-desc').value.trim();
+    const file = document.getElementById('f-file').value.trim();
+    const code = document.getElementById('f-code').value;
+    const errEl = document.getElementById('formErr');
+    errEl.style.display = 'none';
+
+    if (!title) { errEl.textContent = 'Title wajib diisi.'; errEl.style.display = 'block'; return; }
+    if (!code.trim()) { errEl.textContent = 'Code wajib diisi.'; errEl.style.display = 'block'; return; }
+
+    const btn = document.getElementById('formSubmit');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+      const res = await fetch('/api/snippets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description, category: selectedCategory, file, code })
+      });
+      const data = await res.json();
+      if (!data.status) throw new Error(data.message || 'Gagal menyimpan snippet');
+      closeForm();
+      showToast('Snippet added!');
+      loadSnippets();
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Snippet';
+    }
+  });
+</script>
+</body>
+</html>
